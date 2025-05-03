@@ -4,16 +4,25 @@
     <meta charset="UTF-8">
     <title>Starmap Generator</title>
     <style>
-        body { background: #000; color: #fff; text-align: center; font-family: sans-serif; }
-        canvas { display: block; margin: 1em auto; background: #000; }
-        button { padding: 0.5em 1em; font-size: 1em; }
+        body { background: #000; color: #fff; font-family: sans-serif; text-align: center; }
+        canvas { background: #000; margin: 1em; border: 1px solid #555; }
+        table { margin: auto; background: #222; color: #fff; border-collapse: collapse; }
+        td, th { padding: 0.3em; border: 1px solid #555; }
+        input { background: #333; color: #fff; border: none; width: 5em; }
     </style>
 </head>
 <body>
     <h1>Starmap Generator</h1>
-    <canvas id="starCanvas"></canvas>
-    <button id="toggleHemisphere">Switch to Southern Hemisphere</button>
+    <div>
+        <canvas id="canvasNorth"></canvas>
+        <canvas id="canvasSouth"></canvas>
+    </div>
+    <h2>Star Data</h2>
+    <button id="updateButton">Update Star Map</button>
+    <table>
+        <tr><th>ID</th><th>Class</th><th>Magnitude</th><th>Distance</th></tr>
+        <tbody id="starTable"></tbody>
+    </table>
     <script src="script.js"></script>
 </body>
 </html>
-
