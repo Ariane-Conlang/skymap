@@ -1,8 +1,8 @@
 // --- CONFIGURATION ---
-const NUM_STARS = 1000; // number of stars to generate
-const MAX_DISTANCE = 1000; // in arbitrary units
-const CANVAS_SIZE = 800; // canvas width and height
-const STAR_RADIUS_SCALE = 3; // scaling factor for star size
+const NUM_STARS = 1000;
+const MAX_DISTANCE = 1000;
+const CANVAS_SIZE = 400; // per hemisphere
+const STAR_RADIUS_SCALE = 3;
 const SPECTRAL_COLORS = {
     'O': '#9bb0ff',
     'B': '#aabfff',
@@ -13,9 +13,7 @@ const SPECTRAL_COLORS = {
     'M': '#ffcc6f'
 };
 
-// Global variables
 let stars = [];
-let hemisphere = 'north'; // current hemisphere ('north' or 'south')
 
 // --- STAR GENERATOR ---
 function generateStars(numStars) {
@@ -23,33 +21,32 @@ function generateStars(numStars) {
     const stars = [];
 
     for (let i = 0; i < numStars; i++) {
-        // Random spherical coordinates
-        const r = Math.random() * MAX_DISTANCE;
-        const theta = Math.acos(2 * Math.random() - 1); // 0 to pi
-        const phi = Math.random() * 2 * Math.PI; // 0 to 2pi
+        // Uniform sphere distribution (cube root fix)
+        const r = Math.cbrt(Math.random()) * MAX_DISTANCE;
+        const theta = Math.acos(2 * Math.random() - 1);
+        const phi = Math.random() * 2 * Math.PI;
 
-        // Convert to Cartesian coordinates
         const x = r * Math.sin(theta) * Math.cos(phi);
         const y = r * Math.sin(theta) * Math.sin(phi);
         const z = r * Math.cos(theta);
 
         const spectralClass = spectralClasses[Math.floor(Math.random() * spectralClasses.length)];
-        const magnitude = Math.random() * 8; // approximate range
+        const magnitude = Math.random() * 8;
 
         stars.push({
+            id: i + 1,
             x, y, z,
             distance: r,
-            mass: 0.1 + Math.random() * 50,
+            mass: +(0.1 + Math.random() * 50).toFixed(2),
             class: spectralClass,
-            magnitude: magnitude
+            magnitude: +magnitude.toFixed(2)
         });
     }
     return stars;
 }
 
-// --- PROJECTION FUNCTION (simple orthographic) ---
+// --- PROJECTION FUNCTION ---
 function projectStar(star, canvasCenter, radius) {
-    // Project onto plane perpendicular to z-axis
     const scale = radius / MAX_DISTANCE;
     const px = canvasCenter.x + star.x * scale;
     const py = canvasCenter.y - star.y * scale;
@@ -58,35 +55,29 @@ function projectStar(star, canvasCenter, radius) {
 
 // --- DRAW FUNCTION ---
 function drawStars(ctx, stars, hemisphere) {
-    // Clear canvas
     ctx.fillStyle = 'black';
     ctx.fillRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
 
     const center = { x: CANVAS_SIZE / 2, y: CANVAS_SIZE / 2 };
-    const radius = CANVAS_SIZE * 0.45; // fit inside circle
+    const radius = CANVAS_SIZE * 0.45;
 
-    // Optional: draw circle boundary
     ctx.strokeStyle = '#555';
     ctx.beginPath();
     ctx.arc(center.x, center.y, radius, 0, 2 * Math.PI);
     ctx.stroke();
 
     for (const star of stars) {
-        // Only show stars in selected hemisphere
+        // Hemisphere filter
         if (hemisphere === 'north' && star.z < 0) continue;
         if (hemisphere === 'south' && star.z > 0) continue;
 
         const pos = projectStar(star, center, radius);
 
-        // Clip stars outside circle
         const dx = pos.x - center.x;
         const dy = pos.y - center.y;
         if (Math.sqrt(dx * dx + dy * dy) > radius) continue;
 
-        // Set color based on spectral class
         ctx.fillStyle = SPECTRAL_COLORS[star.class] || 'white';
-
-        // Set radius scaled inversely by magnitude (brighter = bigger)
         const starRadius = Math.max(0.5, STAR_RADIUS_SCALE * (1 / (star.magnitude + 1)));
 
         ctx.beginPath();
@@ -95,22 +86,56 @@ function drawStars(ctx, stars, hemisphere) {
     }
 }
 
+// --- UPDATE STAR DATA FROM INPUT ---
+function updateStarField() {
+    for (const star of stars) {
+        const row = document.getElementById(`star-row-${star.id}`);
+        if (row) {
+            const classInput = row.querySelector('.class-input').value;
+            const magInput = parseFloat(row.querySelector('.mag-input').value);
+            const distInput = parseFloat(row.querySelector('.dist-input').value);
+
+            star.class = classInput;
+            star.magnitude = magInput;
+            star.distance = distInput;
+        }
+    }
+    // Redraw both hemispheres
+    const ctxNorth = document.getElementById('canvasNorth').getContext('2d');
+    const ctxSouth = document.getElementById('canvasSouth').getContext('2d');
+    drawStars(ctxNorth, stars, 'north');
+    drawStars(ctxSouth, stars, 'south');
+}
+
 // --- INITIALIZATION ---
 window.onload = function () {
-    const canvas = document.getElementById('starCanvas');
-    canvas.width = CANVAS_SIZE;
-    canvas.height = CANVAS_SIZE;
-    const ctx = canvas.getContext('2d');
+    const canvasNorth = document.getElementById('canvasNorth');
+    const canvasSouth = document.getElementById('canvasSouth');
+    canvasNorth.width = CANVAS_SIZE;
+    canvasNorth.height = CANVAS_SIZE;
+    canvasSouth.width = CANVAS_SIZE;
+    canvasSouth.height = CANVAS_SIZE;
+
+    const ctxNorth = canvasNorth.getContext('2d');
+    const ctxSouth = canvasSouth.getContext('2d');
 
     stars = generateStars(NUM_STARS);
-    drawStars(ctx, stars, hemisphere);
 
-    // Toggle button
-    const toggleBtn = document.getElementById('toggleHemisphere');
-    toggleBtn.addEventListener('click', () => {
-        hemisphere = (hemisphere === 'north') ? 'south' : 'north';
-        drawStars(ctx, stars, hemisphere);
-        toggleBtn.textContent = `Switch to ${(hemisphere === 'north') ? 'Southern' : 'Northern'} Hemisphere`;
-    });
+    drawStars(ctxNorth, stars, 'north');
+    drawStars(ctxSouth, stars, 'south');
+
+    const table = document.getElementById('starTable');
+    for (const star of stars) {
+        const row = document.createElement('tr');
+        row.id = `star-row-${star.id}`;
+        row.innerHTML = `
+            <td>${star.id}</td>
+            <td><input class="class-input" type="text" value="${star.class}" size="1"></td>
+            <td><input class="mag-input" type="number" step="0.01" value="${star.magnitude}"></td>
+            <td><input class="dist-input" type="number" step="0.1" value="${star.distance.toFixed(1)}"></td>
+        `;
+        table.appendChild(row);
+    }
+
+    document.getElementById('updateButton').addEventListener('click', updateStarField);
 };
-
